@@ -22,11 +22,11 @@ This skill reads the Obsidian plugin context to know which file is currently ope
 
 2. If the file doesn't exist or activeFile is null, tell the user the plugin is not active.
 
-3. Parse the JSON and extract activeFile (absolute path), vault, selection, cursor.
+3. Parse the JSON and extract activeFile (absolute path), vault, selection.
 
 4. Read the active file with the Read tool.
 
-5. If a selection is present, highlight it — it's likely what the user wants to discuss.
+5. If a selection is present, focus on it — it's likely what the user wants to discuss.
 
 6. Also read the vault CLAUDE.md at the vault root if it exists.
 
@@ -37,7 +37,6 @@ export default class ClaudeContextPlugin extends Plugin {
 	private statusBarEl: HTMLElement | null = null;
 	private lastActiveFile: string | null = null;
 	private lastSelection: string | null = null;
-	private lastCursor: { line: number; ch: number } | null = null;
 
 	private get contextPath(): string {
 		const vaultPath = (this.app.vault.adapter as any).basePath;
@@ -57,7 +56,7 @@ export default class ClaudeContextPlugin extends Plugin {
 
 		this.registerEditorExtension(
 			EditorView.updateListener.of((update) => {
-				if (update.selectionSet || update.docChanged) {
+				if (update.selectionSet) {
 					this.writeContext();
 				}
 			})
@@ -90,16 +89,13 @@ export default class ClaudeContextPlugin extends Plugin {
 		if (file?.path) {
 			this.lastActiveFile = `${vaultPath}/${file.path}`;
 			this.lastSelection = null;
-			this.lastCursor = null;
 
 			const view = this.app.workspace.getActiveViewOfType(MarkdownView);
 			if (view?.editor) {
-				const editor = view.editor;
-				const selection = editor.getSelection();
+				const selection = view.editor.getSelection();
 				if (selection) {
 					this.lastSelection = selection;
 				}
-				this.lastCursor = editor.getCursor();
 			}
 		}
 
@@ -107,7 +103,6 @@ export default class ClaudeContextPlugin extends Plugin {
 			activeFile: this.lastActiveFile,
 			vault: vaultPath,
 			selection: this.lastSelection,
-			cursor: this.lastCursor,
 			timestamp: Date.now(),
 		};
 

@@ -44,11 +44,11 @@ This skill reads the Obsidian plugin context to know which file is currently ope
 
 2. If the file doesn't exist or activeFile is null, tell the user the plugin is not active.
 
-3. Parse the JSON and extract activeFile (absolute path), vault, selection, cursor.
+3. Parse the JSON and extract activeFile (absolute path), vault, selection.
 
 4. Read the active file with the Read tool.
 
-5. If a selection is present, highlight it \u2014 it's likely what the user wants to discuss.
+5. If a selection is present, focus on it \u2014 it's likely what the user wants to discuss.
 
 6. Also read the vault CLAUDE.md at the vault root if it exists.
 
@@ -60,7 +60,6 @@ var ClaudeContextPlugin = class extends import_obsidian.Plugin {
     this.statusBarEl = null;
     this.lastActiveFile = null;
     this.lastSelection = null;
-    this.lastCursor = null;
   }
   get contextPath() {
     const vaultPath = this.app.vault.adapter.basePath;
@@ -77,7 +76,7 @@ var ClaudeContextPlugin = class extends import_obsidian.Plugin {
     );
     this.registerEditorExtension(
       import_view.EditorView.updateListener.of((update) => {
-        if (update.selectionSet || update.docChanged) {
+        if (update.selectionSet) {
           this.writeContext();
         }
       })
@@ -107,22 +106,18 @@ var ClaudeContextPlugin = class extends import_obsidian.Plugin {
     if (file == null ? void 0 : file.path) {
       this.lastActiveFile = `${vaultPath}/${file.path}`;
       this.lastSelection = null;
-      this.lastCursor = null;
       const view = this.app.workspace.getActiveViewOfType(import_obsidian.MarkdownView);
       if (view == null ? void 0 : view.editor) {
-        const editor = view.editor;
-        const selection = editor.getSelection();
+        const selection = view.editor.getSelection();
         if (selection) {
           this.lastSelection = selection;
         }
-        this.lastCursor = editor.getCursor();
       }
     }
     const context = {
       activeFile: this.lastActiveFile,
       vault: vaultPath,
       selection: this.lastSelection,
-      cursor: this.lastCursor,
       timestamp: Date.now()
     };
     try {
