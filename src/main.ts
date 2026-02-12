@@ -1,8 +1,10 @@
 import { Plugin, MarkdownView } from "obsidian";
+import { EditorView } from "@codemirror/view";
 import { writeFileSync, mkdirSync } from "fs";
 import { join } from "path";
 
-const CONTEXT_PATH = "/tmp/obsidian-claude-context.json";
+const CONTEXT_FILE = "context.json";
+const PLUGIN_ID = "obsidian-claude-context";
 
 const SKILL_CONTENT = `---
 description: "Read the currently active file in Obsidian and load it as context. Use when user references their Obsidian vault or says 'obsidian', 'note', 'vault', or wants to work on the file they're looking at."
@@ -16,7 +18,7 @@ This skill reads the Obsidian plugin context to know which file is currently ope
 
 ## Instructions
 
-1. Read the context file \`/tmp/obsidian-claude-context.json\`
+1. Read the context file at \`.obsidian/plugins/obsidian-claude-context/context.json\`
 
 2. If the file doesn't exist or activeFile is null, tell the user the plugin is not active.
 
@@ -26,7 +28,7 @@ This skill reads the Obsidian plugin context to know which file is currently ope
 
 5. If a selection is present, highlight it — it's likely what the user wants to discuss.
 
-6. Also read the vault CLAUDE.md at {vault}/CLAUDE.md if it exists.
+6. Also read the vault CLAUDE.md at the vault root if it exists.
 
 7. Briefly tell the user which file is loaded, then continue with this context.
 `;
@@ -36,6 +38,11 @@ export default class ClaudeContextPlugin extends Plugin {
 	private lastActiveFile: string | null = null;
 	private lastSelection: string | null = null;
 	private lastCursor: { line: number; ch: number } | null = null;
+
+	private get contextPath(): string {
+		const vaultPath = (this.app.vault.adapter as any).basePath;
+		return join(vaultPath, ".obsidian", "plugins", PLUGIN_ID, CONTEXT_FILE);
+	}
 
 	async onload() {
 		this.installSkill();
@@ -48,9 +55,11 @@ export default class ClaudeContextPlugin extends Plugin {
 			})
 		);
 
-		this.registerEvent(
-			this.app.workspace.on("editor-change", () => {
-				this.writeContext();
+		this.registerEditorExtension(
+			EditorView.updateListener.of((update) => {
+				if (update.selectionSet || update.docChanged) {
+					this.writeContext();
+				}
 			})
 		);
 
@@ -61,7 +70,7 @@ export default class ClaudeContextPlugin extends Plugin {
 
 	onunload() {
 		try {
-			writeFileSync(CONTEXT_PATH, JSON.stringify({ activeFile: null }));
+			writeFileSync(this.contextPath, JSON.stringify({ activeFile: null }));
 		} catch {}
 	}
 
@@ -103,7 +112,7 @@ export default class ClaudeContextPlugin extends Plugin {
 		};
 
 		try {
-			writeFileSync(CONTEXT_PATH, JSON.stringify(context, null, 2));
+			writeFileSync(this.contextPath, JSON.stringify(context, null, 2));
 		} catch {}
 	}
 }

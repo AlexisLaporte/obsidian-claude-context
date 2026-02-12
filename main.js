@@ -23,9 +23,11 @@ __export(main_exports, {
 });
 module.exports = __toCommonJS(main_exports);
 var import_obsidian = require("obsidian");
+var import_view = require("@codemirror/view");
 var import_fs = require("fs");
 var import_path = require("path");
-var CONTEXT_PATH = "/tmp/obsidian-claude-context.json";
+var CONTEXT_FILE = "context.json";
+var PLUGIN_ID = "obsidian-claude-context";
 var SKILL_CONTENT = `---
 description: "Read the currently active file in Obsidian and load it as context. Use when user references their Obsidian vault or says 'obsidian', 'note', 'vault', or wants to work on the file they're looking at."
 user_invocable: true
@@ -38,7 +40,7 @@ This skill reads the Obsidian plugin context to know which file is currently ope
 
 ## Instructions
 
-1. Read the context file \`/tmp/obsidian-claude-context.json\`
+1. Read the context file at \`.obsidian/plugins/obsidian-claude-context/context.json\`
 
 2. If the file doesn't exist or activeFile is null, tell the user the plugin is not active.
 
@@ -48,7 +50,7 @@ This skill reads the Obsidian plugin context to know which file is currently ope
 
 5. If a selection is present, highlight it \u2014 it's likely what the user wants to discuss.
 
-6. Also read the vault CLAUDE.md at {vault}/CLAUDE.md if it exists.
+6. Also read the vault CLAUDE.md at the vault root if it exists.
 
 7. Briefly tell the user which file is loaded, then continue with this context.
 `;
@@ -60,6 +62,10 @@ var ClaudeContextPlugin = class extends import_obsidian.Plugin {
     this.lastSelection = null;
     this.lastCursor = null;
   }
+  get contextPath() {
+    const vaultPath = this.app.vault.adapter.basePath;
+    return (0, import_path.join)(vaultPath, ".obsidian", "plugins", PLUGIN_ID, CONTEXT_FILE);
+  }
   async onload() {
     this.installSkill();
     this.statusBarEl = this.addStatusBarItem();
@@ -69,9 +75,11 @@ var ClaudeContextPlugin = class extends import_obsidian.Plugin {
         this.writeContext();
       })
     );
-    this.registerEvent(
-      this.app.workspace.on("editor-change", () => {
-        this.writeContext();
+    this.registerEditorExtension(
+      import_view.EditorView.updateListener.of((update) => {
+        if (update.selectionSet || update.docChanged) {
+          this.writeContext();
+        }
       })
     );
     this.app.workspace.onLayoutReady(() => {
@@ -80,7 +88,7 @@ var ClaudeContextPlugin = class extends import_obsidian.Plugin {
   }
   onunload() {
     try {
-      (0, import_fs.writeFileSync)(CONTEXT_PATH, JSON.stringify({ activeFile: null }));
+      (0, import_fs.writeFileSync)(this.contextPath, JSON.stringify({ activeFile: null }));
     } catch (e) {
     }
   }
@@ -118,7 +126,7 @@ var ClaudeContextPlugin = class extends import_obsidian.Plugin {
       timestamp: Date.now()
     };
     try {
-      (0, import_fs.writeFileSync)(CONTEXT_PATH, JSON.stringify(context, null, 2));
+      (0, import_fs.writeFileSync)(this.contextPath, JSON.stringify(context, null, 2));
     } catch (e) {
     }
   }
