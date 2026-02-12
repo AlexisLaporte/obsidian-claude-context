@@ -37,6 +37,7 @@ export default class ClaudeContextPlugin extends Plugin {
 	private statusBarEl: HTMLElement | null = null;
 	private lastActiveFile: string | null = null;
 	private lastSelection: string | null = null;
+	private lastSelectionLine: number | null = null;
 	private selectionListener: (() => void) | null = null;
 
 	private get contextPath(): string {
@@ -91,18 +92,34 @@ export default class ClaudeContextPlugin extends Plugin {
 		} catch {}
 	}
 
-	private getSelection(): string | null {
+	private getSelection(): { text: string; line: number } | null {
 		// Try editor selection first (Editing View)
 		const view = this.app.workspace.getActiveViewOfType(MarkdownView);
 		if (view?.editor) {
-			const sel = view.editor.getSelection();
-			if (sel) return sel;
+			const text = view.editor.getSelection();
+			if (text) {
+				const line = view.editor.getCursor("from").line + 1;
+				return { text, line };
+			}
 		}
 
 		// Fallback to DOM selection (Reading View)
 		const domSel = activeWindow.getSelection();
-		if (domSel && domSel.toString().trim()) {
-			return domSel.toString().trim();
+		const text = domSel?.toString().trim();
+		if (text) {
+			// Find line by reading the source file
+			let line = 0;
+			if (this.lastActiveFile) {
+				try {
+					const { readFileSync } = require("fs");
+					const content = readFileSync(this.lastActiveFile, "utf-8");
+					const idx = content.indexOf(text);
+					if (idx !== -1) {
+						line = content.substring(0, idx).split("\n").length;
+					}
+				} catch {}
+			}
+			return { text, line };
 		}
 
 		return null;
@@ -117,11 +134,13 @@ export default class ClaudeContextPlugin extends Plugin {
 			if (filePath !== this.lastActiveFile) {
 				this.lastActiveFile = filePath;
 				this.lastSelection = null;
+				this.lastSelectionLine = null;
 			}
 
 			const selection = this.getSelection();
 			if (selection) {
-				this.lastSelection = selection;
+				this.lastSelection = selection.text;
+				this.lastSelectionLine = selection.line;
 			}
 		}
 
@@ -129,6 +148,7 @@ export default class ClaudeContextPlugin extends Plugin {
 			activeFile: this.lastActiveFile,
 			vault: vaultPath,
 			selection: this.lastSelection,
+			selectionLine: this.lastSelectionLine,
 			timestamp: Date.now(),
 		};
 

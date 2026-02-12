@@ -60,6 +60,7 @@ var ClaudeContextPlugin = class extends import_obsidian.Plugin {
     this.statusBarEl = null;
     this.lastActiveFile = null;
     this.lastSelection = null;
+    this.lastSelectionLine = null;
     this.selectionListener = null;
   }
   get contextPath() {
@@ -108,12 +109,28 @@ var ClaudeContextPlugin = class extends import_obsidian.Plugin {
   getSelection() {
     const view = this.app.workspace.getActiveViewOfType(import_obsidian.MarkdownView);
     if (view == null ? void 0 : view.editor) {
-      const sel = view.editor.getSelection();
-      if (sel) return sel;
+      const text2 = view.editor.getSelection();
+      if (text2) {
+        const line = view.editor.getCursor("from").line + 1;
+        return { text: text2, line };
+      }
     }
     const domSel = activeWindow.getSelection();
-    if (domSel && domSel.toString().trim()) {
-      return domSel.toString().trim();
+    const text = domSel == null ? void 0 : domSel.toString().trim();
+    if (text) {
+      let line = 0;
+      if (this.lastActiveFile) {
+        try {
+          const { readFileSync } = require("fs");
+          const content = readFileSync(this.lastActiveFile, "utf-8");
+          const idx = content.indexOf(text);
+          if (idx !== -1) {
+            line = content.substring(0, idx).split("\n").length;
+          }
+        } catch (e) {
+        }
+      }
+      return { text, line };
     }
     return null;
   }
@@ -125,16 +142,19 @@ var ClaudeContextPlugin = class extends import_obsidian.Plugin {
       if (filePath !== this.lastActiveFile) {
         this.lastActiveFile = filePath;
         this.lastSelection = null;
+        this.lastSelectionLine = null;
       }
       const selection = this.getSelection();
       if (selection) {
-        this.lastSelection = selection;
+        this.lastSelection = selection.text;
+        this.lastSelectionLine = selection.line;
       }
     }
     const context = {
       activeFile: this.lastActiveFile,
       vault: vaultPath,
       selection: this.lastSelection,
+      selectionLine: this.lastSelectionLine,
       timestamp: Date.now()
     };
     try {
