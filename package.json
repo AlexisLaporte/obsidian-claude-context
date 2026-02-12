@@ -1,0 +1,19 @@
+{
+	"name": "obsidian-claude-context",
+	"version": "0.1.0",
+	"description": "Writes the active file path to /tmp/obsidian-claude-context.json for Claude Code integration",
+	"main": "main.js",
+	"scripts": {
+		"build": "node esbuild.config.mjs production",
+		"dev": "node esbuild.config.mjs"
+	},
+	"keywords": ["obsidian", "claude", "context"],
+	"author": "Alexis Laporte",
+	"license": "MIT",
+	"devDependencies": {
+		"@types/node": "^22.0.0",
+		"esbuild": "^0.24.0",
+		"obsidian": "latest",
+		"typescript": "^5.6.0"
+	}
+}

@@ -1,0 +1,9 @@
+{
+	"id": "obsidian-claude-context",
+	"name": "Claude Context",
+	"version": "0.1.0",
+	"minAppVersion": "1.0.0",
+	"description": "Writes the active file path to /tmp/obsidian-claude-context.json for Claude Code integration",
+	"author": "Alexis Laporte",
+	"isDesktopOnly": true
+}
