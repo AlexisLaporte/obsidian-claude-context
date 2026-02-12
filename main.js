@@ -60,6 +60,7 @@ var ClaudeContextPlugin = class extends import_obsidian.Plugin {
     this.statusBarEl = null;
     this.lastActiveFile = null;
     this.lastSelection = null;
+    this.selectionListener = null;
   }
   get contextPath() {
     const vaultPath = this.app.vault.adapter.basePath;
@@ -81,6 +82,10 @@ var ClaudeContextPlugin = class extends import_obsidian.Plugin {
         }
       })
     );
+    const onSelectionChange = () => this.writeContext();
+    activeDocument.addEventListener("selectionchange", onSelectionChange);
+    this.selectionListener = () => activeDocument.removeEventListener("selectionchange", onSelectionChange);
+    this.register(this.selectionListener);
     this.app.workspace.onLayoutReady(() => {
       this.writeContext();
     });
@@ -100,6 +105,18 @@ var ClaudeContextPlugin = class extends import_obsidian.Plugin {
     } catch (e) {
     }
   }
+  getSelection() {
+    const view = this.app.workspace.getActiveViewOfType(import_obsidian.MarkdownView);
+    if (view == null ? void 0 : view.editor) {
+      const sel = view.editor.getSelection();
+      if (sel) return sel;
+    }
+    const domSel = activeWindow.getSelection();
+    if (domSel && domSel.toString().trim()) {
+      return domSel.toString().trim();
+    }
+    return null;
+  }
   writeContext() {
     const vaultPath = this.app.vault.adapter.basePath;
     const file = this.app.workspace.getActiveFile();
@@ -109,12 +126,9 @@ var ClaudeContextPlugin = class extends import_obsidian.Plugin {
         this.lastActiveFile = filePath;
         this.lastSelection = null;
       }
-      const view = this.app.workspace.getActiveViewOfType(import_obsidian.MarkdownView);
-      if (view == null ? void 0 : view.editor) {
-        const selection = view.editor.getSelection();
-        if (selection) {
-          this.lastSelection = selection;
-        }
+      const selection = this.getSelection();
+      if (selection) {
+        this.lastSelection = selection;
       }
     }
     const context = {

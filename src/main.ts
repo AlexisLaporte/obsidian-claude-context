@@ -37,6 +37,7 @@ export default class ClaudeContextPlugin extends Plugin {
 	private statusBarEl: HTMLElement | null = null;
 	private lastActiveFile: string | null = null;
 	private lastSelection: string | null = null;
+	private selectionListener: (() => void) | null = null;
 
 	private get contextPath(): string {
 		const vaultPath = (this.app.vault.adapter as any).basePath;
@@ -54,6 +55,7 @@ export default class ClaudeContextPlugin extends Plugin {
 			})
 		);
 
+		// Editing view: CodeMirror selection changes
 		this.registerEditorExtension(
 			EditorView.updateListener.of((update) => {
 				if (update.selectionSet) {
@@ -61,6 +63,13 @@ export default class ClaudeContextPlugin extends Plugin {
 				}
 			})
 		);
+
+		// Reading view + fallback: DOM selection changes
+		const onSelectionChange = () => this.writeContext();
+		activeDocument.addEventListener("selectionchange", onSelectionChange);
+		this.selectionListener = () =>
+			activeDocument.removeEventListener("selectionchange", onSelectionChange);
+		this.register(this.selectionListener);
 
 		this.app.workspace.onLayoutReady(() => {
 			this.writeContext();
@@ -82,6 +91,23 @@ export default class ClaudeContextPlugin extends Plugin {
 		} catch {}
 	}
 
+	private getSelection(): string | null {
+		// Try editor selection first (Editing View)
+		const view = this.app.workspace.getActiveViewOfType(MarkdownView);
+		if (view?.editor) {
+			const sel = view.editor.getSelection();
+			if (sel) return sel;
+		}
+
+		// Fallback to DOM selection (Reading View)
+		const domSel = activeWindow.getSelection();
+		if (domSel && domSel.toString().trim()) {
+			return domSel.toString().trim();
+		}
+
+		return null;
+	}
+
 	private writeContext() {
 		const vaultPath = (this.app.vault.adapter as any).basePath;
 		const file = this.app.workspace.getActiveFile();
@@ -93,12 +119,9 @@ export default class ClaudeContextPlugin extends Plugin {
 				this.lastSelection = null;
 			}
 
-			const view = this.app.workspace.getActiveViewOfType(MarkdownView);
-			if (view?.editor) {
-				const selection = view.editor.getSelection();
-				if (selection) {
-					this.lastSelection = selection;
-				}
+			const selection = this.getSelection();
+			if (selection) {
+				this.lastSelection = selection;
 			}
 		}
 
