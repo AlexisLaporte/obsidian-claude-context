@@ -104,8 +104,11 @@ var ClaudeContextPlugin = class extends import_obsidian.Plugin {
     const vaultPath = this.app.vault.adapter.basePath;
     const file = this.app.workspace.getActiveFile();
     if (file == null ? void 0 : file.path) {
-      this.lastActiveFile = `${vaultPath}/${file.path}`;
-      this.lastSelection = null;
+      const filePath = `${vaultPath}/${file.path}`;
+      if (filePath !== this.lastActiveFile) {
+        this.lastActiveFile = filePath;
+        this.lastSelection = null;
+      }
       const view = this.app.workspace.getActiveViewOfType(import_obsidian.MarkdownView);
       if (view == null ? void 0 : view.editor) {
         const selection = view.editor.getSelection();

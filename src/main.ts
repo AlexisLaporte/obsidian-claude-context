@@ -87,8 +87,11 @@ export default class ClaudeContextPlugin extends Plugin {
 		const file = this.app.workspace.getActiveFile();
 
 		if (file?.path) {
-			this.lastActiveFile = `${vaultPath}/${file.path}`;
-			this.lastSelection = null;
+			const filePath = `${vaultPath}/${file.path}`;
+			if (filePath !== this.lastActiveFile) {
+				this.lastActiveFile = filePath;
+				this.lastSelection = null;
+			}
 
 			const view = this.app.workspace.getActiveViewOfType(MarkdownView);
 			if (view?.editor) {
